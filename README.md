@@ -1,4 +1,5 @@
 # Animal-Shape-MNIST
+##### UNDER CONSTRUCTION ################
 A dataset capable of supporting scalable and cost-efficient benchmarking on top of being an educational resource 
 ## Table of content
 - Purpose of this experiment 
@@ -30,7 +31,7 @@ By resembling MNIST in its structure, animal shape dataset maintains relative si
 [Will look into adding it to already known libraries such as Tensorflow, Hugging Face, PytorchHub. ]
 For the time being, you can clone this GitHub repository; the dataset appears under data/animal_shape. This repo also contains python script for benchmarking. 
 
-```git clone https://github.com/SinaSR-6/Animal-Shape-Dataset-TEST.git```
+```git clone https://github.com/SinaSR-6/Animal-Shape-MNIST.git```
 ## Labels
 This is how the images are assigned their class ID:
 | Class ID | Animal       |
