@@ -1,5 +1,5 @@
 # Animal-Shape-MNIST
-##### UNDER CONSTRUCTION ################
+##### UNDER CONSTRUCTION, WILL BE COPIED TO KAGGLE AFTER FINALIZATION ################
 A dataset capable of supporting scalable and cost-efficient benchmarking on top of being an educational resource 
 ## Table of content
 - Purpose of this experiment 
