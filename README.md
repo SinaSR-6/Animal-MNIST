@@ -29,9 +29,37 @@ Some other applications would be:
 By resembling MNIST in its structure, animal shape dataset maintains relative simplicity, making it user-friendly and accessible for beginners and advanced practitioners alike; Although it has more complexity, this dataset has less easily discernible structured features when compared to MNIST and FAHION-MNIST, potentially providing more insight into the ability of models. By showcasing animals from various different angles and including occasional small noise, this dataset mimics real-world challenges like variations in perspective, lightning, minor artifacts, ensures not being biased toward ideal or consistent conditions, challenges models to learn invariant representations and adds the capability of testing the robustness of models.
 ## How to access the data
 [Will look into adding it to already known libraries such as Tensorflow, Hugging Face, PytorchHub. ]
-For the time being, you can clone this GitHub repository; the dataset appears under data/animal_shape. This repo also contains python script for benchmarking. 
+You can clone this GitHub repository; the dataset appears under data/animal_shape. This repo also contains python script for benchmarking. 
 
 ```git clone https://github.com/SinaSR-6/Animal-Shape-MNIST.git```
+
+You could also install the package using
+```pip install animal-shape-mnist==0.39```
+and then for loading the dataset:
+```
+from animal_shape_mnist.dataset_Loader import load_animal_shape_dataset
+from animal_shape_mnist.dataset_Loader import load_fashion_mnist_data
+from animal_shape_mnist.dataset_Loader import load_mnist_data
+
+X_train, y_train = load_mnist_data() 
+X_test_f, y_test_f = load_fashion_mnist_data() 
+X_test_animal,y_test_animal = load_animal_shape_dataset()
+```
+And for the benchmarking:
+```
+from animal_shape_mnist import benchmarker
+from sklearn.tree import DecisionTreeClassifier # for testing
+
+# Define models
+models = {
+    "DecisionTree": DecisionTreeClassifier(max_depth=10)
+}
+
+# Run benchmark
+results = benchmarker.run_benchmark(models)
+print(results)
+```
+
 ## Labels
 This is how the images are assigned their class ID:
 | Class ID | Animal       |
