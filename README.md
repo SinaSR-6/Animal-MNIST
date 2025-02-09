@@ -45,20 +45,7 @@ X_train, y_train = load_mnist_data()
 X_test_f, y_test_f = load_fashion_mnist_data() 
 X_test_animal,y_test_animal = load_animal_shape_dataset()
 ```
-And for the benchmarking:
-```
-from animal_shape_mnist import benchmarker
-from sklearn.tree import DecisionTreeClassifier # for testing
 
-# Define models
-models = {
-    "DecisionTree": DecisionTreeClassifier(max_depth=10)
-}
-
-# Run benchmark
-results = benchmarker.run_benchmark(models)
-print(results)
-```
 
 ## Labels
 This is how the images are assigned their class ID:
@@ -85,6 +72,20 @@ X_test_animal,y_test_animal = dataset_reader.load_animal_shape_dataset()
 ## Benchmark
 On top of the benchmarking samples here [Benchmark_ran.csv file], A system was devised to accept as it’s input a new model and automatically run a benchmarking on all three datasets. 
 You can utilise this by running benchmarker.py program.
+For easiser access you could also run the following code after installing the package, but the output less stylized:
+```
+from animal_shape_mnist import benchmarker
+from sklearn.tree import DecisionTreeClassifier # for testing
+
+# Define models
+models = {
+    "DecisionTree": DecisionTreeClassifier(max_depth=10)
+}
+
+# Run benchmark
+results = benchmarker.run_benchmark(models)
+print(results)
+```
 ## Visualization
 ![Visualization](Images/Visualization.png)
 
