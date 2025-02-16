@@ -41,9 +41,9 @@ from animal_shape_mnist.dataset_Loader import load_animal_shape_dataset
 from animal_shape_mnist.dataset_Loader import load_fashion_mnist_data
 from animal_shape_mnist.dataset_Loader import load_mnist_data
 
-X_train, y_train = load_mnist_data() 
-X_test_f, y_test_f = load_fashion_mnist_data() 
-X_test_animal,y_test_animal = load_animal_shape_dataset()
+X_MNIST, y_MNIST = load_mnist_data() 
+X_fashion, y_fashion = load_fashion_mnist_data() 
+X_animal,y_animal = load_animal_shape_dataset()
 ```
 
 
