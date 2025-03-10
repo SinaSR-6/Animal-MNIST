@@ -1,4 +1,4 @@
-# Animal-Shape-MNIST
+# Animal-MNIST
 ##### UNDER CONSTRUCTION, WILL BE COPIED TO KAGGLE AFTER FINALIZATION ################
 A dataset capable of supporting scalable and cost-efficient benchmarking on top of being an educational resource 
 ## Table of content
@@ -28,7 +28,6 @@ Some other applications would be:
 
 By resembling MNIST in its structure, animal shape dataset maintains relative simplicity, making it user-friendly and accessible for beginners and advanced practitioners alike; Although it has more complexity, this dataset has less easily discernible structured features when compared to MNIST and FAHION-MNIST, potentially providing more insight into the ability of models. By showcasing animals from various different angles and including occasional small noise, this dataset mimics real-world challenges like variations in perspective, lightning, minor artifacts, ensures not being biased toward ideal or consistent conditions, challenges models to learn invariant representations and adds the capability of testing the robustness of models.
 ## How to access the data
-[Will look into adding it to already known libraries such as Tensorflow, Hugging Face, PytorchHub. ]
 You can clone this GitHub repository; the dataset appears under data/animal_shape. This repo also contains python script for benchmarking. 
 
 ```git clone https://github.com/SinaSR-6/Animal-Shape-MNIST.git```
