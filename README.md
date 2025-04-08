@@ -8,7 +8,7 @@ A dataset capable of supporting scalable and cost-efficient benchmarking on top 
 - Benchmark 
 - Visualization
   
-Animal-Shape is a dataset consisting of 10,000 images of 28x28 grayscale images, mimicking the format of MNIST dataset. There are 10 classes of animals (including Bear, Bird, Cat, Cow, Dog, Elephant, Giraffe, Horse, Sheep, Zebra) each consisting of 1000 pictures. 
+Animal-MNIST is a dataset consisting of 10,000 images of 28x28 grayscale images, mimicking the format of MNIST dataset. There are 10 classes of animals (including Bear, Bird, Cat, Cow, Dog, Elephant, Giraffe, Horse, Sheep, Zebra) each consisting of 1000 pictures. 
 This is intended to serve educational purposes and expand further on the MNIST - fashion MNIST benchmarking system for machine learning algorithms. 
 Here's an example of how the data looks:
 
