@@ -1,5 +1,4 @@
 # Animal-MNIST
-##### UNDER CONSTRUCTION, WILL BE COPIED TO KAGGLE AFTER FINALIZATION ################
 A dataset capable of supporting scalable and cost-efficient benchmarking on top of being an educational resource 
 ## Table of content
 - Purpose of this experiment 
@@ -46,7 +45,6 @@ X_MNIST, y_MNIST = load_mnist_data()
 X_fashion, y_fashion = load_fashion_mnist_data() 
 X_animal,y_animal = load_animal_shape_dataset()
 ```
-
 
 ## Labels
 This is how the images are assigned their class ID:
