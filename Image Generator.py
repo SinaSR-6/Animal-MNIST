@@ -42,12 +42,15 @@ pipe.safety_checker = lambda images, **kwargs: (images, [False] * len(images))  
 
 # ========== VARIABLES ==========
 animal = "bear"
+quantity = 5
 xnum = "2"
 img_dir = os.path.join(SCRIPT_DIR, f"{animal}_{xnum}_images")
 os.makedirs(img_dir, exist_ok=True)
 
 # ========== GENERATE IMAGES ==========
-for i in range(5):
+
+
+for i in range(quantity):
     print(f"Attempt {i}")
     negative_prompt = "color, overlapping objects, touching objects, more than 3 animals,realistic textures, shadows, details, background elements, unclear outlines"
     prompt = f"A clean black silhouette of a single {animal}, centered, on a plain white background. No shadows, no details, no field."
