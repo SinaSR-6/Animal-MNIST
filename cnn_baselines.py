@@ -1,7 +1,6 @@
 """
 cnn_baselines.py
 
-
 Run:  python 02_cnn_baselines_fixed.py --seeds 3 --epochs 25
       python 02_cnn_baselines_fixed.py --seeds 3 --epochs 30 --with_resnet
 Outputs: cnn_baselines_fixed.csv
@@ -9,9 +8,28 @@ Outputs: cnn_baselines_fixed.csv
 import argparse
 import numpy as np
 import pandas as pd
-import common
+from sklearn.model_selection import train_test_split
 import tensorflow as tf
 from tensorflow.keras import layers, models
+from animal_mnist.dataset_Loader import (
+    load_animal_mnist_dataset,
+    load_mnist_data,
+    load_fashion_mnist_data,
+)
+
+
+def stratified_split(X, y, test_size=0.2, seed=0):
+    return train_test_split(X, y, test_size=test_size, random_state=seed,
+                            shuffle=True, stratify=y)
+
+
+def load_all_three():
+    Xa, ya = load_animal_mnist_dataset()
+    return {
+        "Animal-MNIST": (np.asarray(Xa), np.asarray(ya).astype(int)),
+        "MNIST": load_mnist_data(),
+        "Fashion-MNIST": load_fashion_mnist_data(),
+    }
 
 
 def lenet(input_shape=(28, 28, 1), n=10):
@@ -31,7 +49,6 @@ def lenet(input_shape=(28, 28, 1), n=10):
 
 
 def small_cnn(input_shape=(28, 28, 1), n=10):
-    """Robust 3-conv CNN -- the recommended 'stronger than LeNet' baseline."""
     m = models.Sequential([
         layers.Input(shape=input_shape),
         layers.Conv2D(32, 3, padding="same", activation="relu"),
@@ -79,9 +96,9 @@ def prep(X):
 
 def fit_eval(builder, X, y, seed, epochs):
     tf.keras.utils.set_random_seed(seed)
-    Xtr, Xte, ytr, yte = common.stratified_split(X, y, 0.2, seed=seed)
+    Xtr, Xte, ytr, yte = stratified_split(X, y, 0.2, seed=seed)
     m = builder()
-    cbs = [  # monitor ACCURACY (mode=max) with generous patience -> fixes the bug
+    cbs = [
         tf.keras.callbacks.EarlyStopping(monitor="val_accuracy", mode="max",
                                          patience=8, restore_best_weights=True),
         tf.keras.callbacks.ReduceLROnPlateau(monitor="val_loss", factor=0.5,
@@ -98,7 +115,7 @@ def run(seeds=3, epochs=25, with_resnet=False):
     builders = {"LeNet-5": lenet, "SmallCNN": small_cnn}
     if with_resnet:
         builders["ResNet-8"] = resnet8
-    data = common.load_all_three()
+    data = load_all_three()
     rows = []
     for mname, b in builders.items():
         for dname, (X, y) in data.items():
