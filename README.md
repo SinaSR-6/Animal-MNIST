@@ -60,14 +60,8 @@ This is how the images are assigned their class ID:
 | 7        | Horse        |
 | 8        | Sheep        |
 | 9        | Zebra        |
-## Usage
-Use the dataset_loader.py in this repository. 
-```
-import dataset_loader 
-X_train, y_train = dataset_reader.load_mnist_data() 
-X_test_f, y_test_f = dataset_reader.load_fashion_mnist_data() 
-X_test_animal,y_test_animal = dataset_reader.load_animal_mnist_dataset()
-```
+
+
 ## Benchmark
 On top of the benchmarking samples here [Benchmark_ran.csv file], A system was devised to accept as it’s input a new model and automatically run a benchmarking on all three datasets. 
 You can utilise this by running benchmarker.py program.
