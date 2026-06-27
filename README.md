@@ -35,7 +35,7 @@ You could also install the package using
 ```pip install animal-mnist```
 and then for loading the dataset:
 ```
-from animal_shape_mnist.dataset_Loader import (
+from animal_mnist.dataset_Loader import (
     load_animal_mnist_dataset,
     load_fashion_mnist_data,
     load_mnist_data,
