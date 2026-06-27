@@ -29,21 +29,21 @@ By resembling MNIST in its structure, animal shape dataset maintains relative si
 ## How to access the data
 You can clone this GitHub repository; the dataset appears under data/animal_shape. This repo also contains python script for benchmarking. 
 
-```git clone https://github.com/SinaSR-6/Animal-Shape-MNIST.git```
+```git clone https://github.com/SinaSR-6/Animal-MNIST.git```
 
 You could also install the package using
-```pip install animal-shape-mnist==0.39```
+```pip install animal-mnist```
 and then for loading the dataset:
 ```
 from animal_shape_mnist.dataset_Loader import (
-    load_animal_shape_dataset,
+    load_animal_mnist_dataset,
     load_fashion_mnist_data,
     load_mnist_data,
 )
 
 X_MNIST, y_MNIST = load_mnist_data() 
 X_fashion, y_fashion = load_fashion_mnist_data() 
-X_animal,y_animal = load_animal_shape_dataset()
+X_animal,y_animal = load_animal_mnist_dataset()
 ```
 
 ## Labels
@@ -66,7 +66,7 @@ Use the dataset_loader.py in this repository.
 import dataset_loader 
 X_train, y_train = dataset_reader.load_mnist_data() 
 X_test_f, y_test_f = dataset_reader.load_fashion_mnist_data() 
-X_test_animal,y_test_animal = dataset_reader.load_animal_shape_dataset()
+X_test_animal,y_test_animal = dataset_reader.load_animal_mnist_dataset()
 ```
 ## Benchmark
 On top of the benchmarking samples here [Benchmark_ran.csv file], A system was devised to accept as it’s input a new model and automatically run a benchmarking on all three datasets. 
