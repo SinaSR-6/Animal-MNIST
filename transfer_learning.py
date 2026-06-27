@@ -1,6 +1,6 @@
 """
 transfer_learning.py
-===============================================================
+
 Run:  python 06_transfer_learning_v2.py --seeds 3 --epochs 15
 Outputs: transfer_results_v2.csv
 """
@@ -9,9 +9,28 @@ import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
-import common
+from sklearn.model_selection import train_test_split
 import tensorflow as tf
 from tensorflow.keras import layers, models
+from animal_mnist.dataset_Loader import (
+    load_animal_mnist_dataset,
+    load_mnist_data,
+    load_fashion_mnist_data,
+)
+
+
+def stratified_split(X, y, test_size=0.2, seed=0):
+    return train_test_split(X, y, test_size=test_size, random_state=seed,
+                            shuffle=True, stratify=y)
+
+
+def load_all_three():
+    Xa, ya = load_animal_mnist_dataset()
+    return {
+        "Animal-MNIST": (np.asarray(Xa), np.asarray(ya).astype(int)),
+        "MNIST": load_mnist_data(),
+        "Fashion-MNIST": load_fashion_mnist_data(),
+    }
 
 
 def backbone(input_shape=(28, 28, 1)):
@@ -46,7 +65,7 @@ def train_backbone(X, y, seed, epochs):
 
 
 def probe(bk, Xt, yt, seed):
-    Xtr, Xte, ytr, yte = common.stratified_split(Xt, yt, 0.2, seed=seed)
+    Xtr, Xte, ytr, yte = stratified_split(Xt, yt, 0.2, seed=seed)
     clf = LogisticRegression(max_iter=500).fit(features(bk, Xtr), ytr)
     return accuracy_score(yte, clf.predict(features(bk, Xte)))
 
@@ -56,13 +75,9 @@ def combine(d1, d2):
 
 
 def run(seeds=3, epochs=15):
-    data = common.load_all_three()
-    if "MNIST" not in data:
-        raise SystemExit("Needs keras (MNIST/Fashion).")
+    data = load_all_three()
     mnist, fashion, animal = data["MNIST"], data["Fashion-MNIST"], data["Animal-MNIST"]
     src_mf = combine(mnist, fashion)
-
-    # target -> (source_for_transfer, target_data)
     setups = {
         "-> Animal":  (src_mf, animal),
         "-> MNIST":   (animal, mnist),
@@ -74,21 +89,19 @@ def run(seeds=3, epochs=15):
         rnd, src_acc, same = [], [], []
         for s in range(seeds):
             tf.keras.utils.set_random_seed(s)
-            rnd.append(probe(backbone(), Xt, yt, s))            # RANDOM features
-            src_acc.append(probe(train_backbone(*src, s, epochs), Xt, yt, s))  # SOURCE
-            same.append(probe(train_backbone(Xt, yt, s, epochs), Xt, yt, s))   # SAME
+            rnd.append(probe(backbone(), Xt, yt, s))
+            src_acc.append(probe(train_backbone(*src, s, epochs), Xt, yt, s))
+            same.append(probe(train_backbone(Xt, yt, s, epochs), Xt, yt, s))
             tf.keras.backend.clear_session()
         for name, arr in [("RANDOM", rnd), ("SOURCE(transfer)", src_acc), ("SAME(ceiling)", same)]:
             arr = np.array(arr)
             rows.append({"target": tag, "backbone": name,
-                         "mean_acc": arr.mean(), "std_acc": arr.std(ddof=1) if seeds>1 else 0.0})
+                         "mean_acc": arr.mean(), "std_acc": arr.std(ddof=1) if seeds > 1 else 0.0})
             print(f"{tag:11s} | {name:17s} | {arr.mean():.4f} +/- "
                   f"{(arr.std(ddof=1) if seeds>1 else 0):.4f}")
         print("-" * 50)
     pd.DataFrame(rows).to_csv("transfer_results_v2.csv", index=False)
     print("Saved transfer_results_v2.csv")
-    print("\nRead it as: if SOURCE ~ SAME >> RANDOM, transfer is real; "
-          "if SOURCE ~ RANDOM, the task is just linearly easy.")
 
 
 if __name__ == "__main__":
