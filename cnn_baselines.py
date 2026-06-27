@@ -1,5 +1,5 @@
 """
-02_cnn_baselines.py
+cnn_baselines.py
 
 
 Run:  python 02_cnn_baselines_fixed.py --seeds 3 --epochs 25
