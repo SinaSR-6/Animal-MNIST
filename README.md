@@ -86,7 +86,7 @@ print(results)
 
 ## Citing Animal-MNIST
 If you use Animal-MNIST in a scientific publication, we would appreciate references to the following paper:
-**Animal-MNIST: Development of Animal Silhouette Dataset as an Extension to MNIST Benchmark. Sina Mohammadi, Mohammad Samy Baladram, Michael R. Zielewski, Kazunori D Yamada**
+**Animal silhouette dataset extending the MNIST benchmark. Sina Mohammadi, Mohammad Samy Baladram, Michael R. Zielewski**
 THIS SECTIONS WILL BE UPDATED AFTER PUBLICATION
 
 
