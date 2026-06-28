@@ -96,7 +96,7 @@ def benchmark_model(model, X, y, model_name, dataset_name, repeats=3, is_tf_mode
 def run_benchmark(models, datasets, repeats=3):
     benchmark_results = []
     for model_name, model in models.items():
-        is_tf_model = isinstance(model, tf.keras.Model)  # Check if it's a Keras model
+        is_tf_model = isinstance(model, tf.keras.Model)  # Checking to see if it's a Keras model
         for dataset_name, (X, y) in datasets.items():
             print(f"Running benchmark for {model_name} on {dataset_name}...")
             result = benchmark_model(
@@ -124,9 +124,9 @@ def format_results_table_with_merged_headers(results_df):
         ("Fashion-MNIST", "accuracy (mean)"),
         ("Fashion-MNIST", "accuracy (std)"),
         ("Fashion-MNIST", "Training Time (mean)"),
-        ("Animal Silhouette MNIST", "accuracy (mean)"),
-        ("Animal Silhouette MNIST", "accuracy (std)"),
-        ("Animal Silhouette MNIST", "Training Time (mean)")
+        ("Animal-MNIST", "accuracy (mean)"),
+        ("Animal-MNIST", "accuracy (std)"),
+        ("Animal-MNIST", "Training Time (mean)")
     ])
 
     # Initialize an empty DataFrame with hierarchical columns
@@ -149,7 +149,7 @@ def format_results_table_with_merged_headers(results_df):
     return formatted_results
 
 
-def load_animal_shape(data_path, label_path):
+def load_animal_mnist_dataset(data_path, label_path):
     with gzip.GzipFile(data_path, 'rb') as f:
         data = pickle.load(f)
     with gzip.GzipFile(label_path, 'rb') as f:
@@ -183,14 +183,14 @@ def create_table():
       ("Fashion-MNIST", "accuracy (mean)"),
       ("Fashion-MNIST", "accuracy (std)"),
       ("Fashion-MNIST", "Training Time (mean)"),
-      ("Animal Silhouette MNIST", "accuracy (mean)"),
-      ("Animal Silhouette MNIST", "accuracy (std)"),
-      ("Animal Silhouette MNIST", "Training Time (mean)")
+      ("Animal-MNIST", "accuracy (mean)"),
+      ("Animal-MNIST", "accuracy (std)"),
+      ("Animal-MNIST", "Training Time (mean)")
   ]
 
   # Merge cells and write dataset headers
   col = 2
-  for dataset in ["MNIST", "Fashion-MNIST", "Animal Silhouette MNIST"]:
+  for dataset in ["MNIST", "Fashion-MNIST", "Animal-MNIST"]:
       ws.merge_cells(start_row=1, start_column=col, end_row=1, end_column=col + 2)
       ws.cell(row=1, column=col).value = dataset
       ws.cell(row=1, column=col).alignment = Alignment(horizontal="center", vertical="center")
@@ -278,12 +278,12 @@ DATA_PATH = file_paths["animal_data_version_3.gz"]
 LABEL_PATH = file_paths["animal_label_version_3.gz"]
 
 # Loading the Animal-MNIST dataset
-X_custom, y_custom = load_animal_shape(DATA_PATH, LABEL_PATH)
+X_custom, y_custom = load_animal_mnist_dataset(DATA_PATH, LABEL_PATH)
 
 # Display information
 print(f"MNIST data shape: {x_mnist.shape}, labels shape: {y_mnist.shape}")
 print(f"Fashion-MNIST data shape: {x_fashion.shape}, labels shape: {y_fashion.shape}")
-print(f"Animal dataset shape: {X_custom.shape}, labels shape: {y_custom.shape}")
+print(f"Animal-MNIST shape: {X_custom.shape}, labels shape: {y_custom.shape}")
 
 CHECK = input("Would you like the datasets to be scaled?: ")
 if CHECK.lower() == "yes" or CHECK.lower() =="y":
