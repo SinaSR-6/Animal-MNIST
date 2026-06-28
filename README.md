@@ -1,5 +1,4 @@
 [![DOI](https://zenodo.org/badge/926924727.svg)](https://doi.org/10.5281/zenodo.20991252)
-
 [![DOI](https://zenodo.org/badge/926924727.svg)](https://doi.org/10.5281/zenodo.20965195)
 
 # Animal-MNIST
