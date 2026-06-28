@@ -27,9 +27,11 @@ Some other applications would be:
 
 By resembling MNIST in its structure, animal shape dataset maintains relative simplicity, making it user-friendly and accessible for beginners and advanced practitioners alike; Although it has more complexity, this dataset has less easily discernible structured features when compared to MNIST and FAHION-MNIST, potentially providing more insight into the ability of models. By showcasing animals from various different angles and including occasional small noise, this dataset mimics real-world challenges like variations in perspective, lightning, minor artifacts, ensures not being biased toward ideal or consistent conditions, challenges models to learn invariant representations and adds the capability of testing the robustness of models.
 ## How to access the data
-You can clone this GitHub repository; the dataset appears under data/animal_shape. This repo also contains python script for benchmarking. 
+You can clone this GitHub repository locally; the dataset appears under data/animal_MNIST. This repo also contains python script for benchmarking. 
 
 ```git clone https://github.com/SinaSR-6/Animal-MNIST.git```
+
+You can then import dataset loader as ```from dataset_Loader import load_animal_mnist_dataset```
 
 You could also install the package using
 ```pip install animal-mnist```
@@ -67,7 +69,7 @@ On top of the benchmarking samples here [Benchmark_ran.csv file], A system was d
 You can utilise this by running benchmarker.py program.
 For easiser access you could also run the following code after installing the package, but the output less stylized:
 ```
-from animal_shape_mnist import benchmarker
+from animal_mnist import benchmarker
 from sklearn.tree import DecisionTreeClassifier # for testing
 
 # Define models
