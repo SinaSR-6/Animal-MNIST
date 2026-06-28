@@ -11,7 +11,7 @@ def sample_data(data, labels, num_samples=10000):
     return data[indices], labels[indices]
 
 
-def load_animal_shape(data_path, label_path):
+def load_animal_mnist(data_path, label_path):
     with gzip.GzipFile(data_path, 'rb') as f:
         data = pickle.load(f)
     with gzip.GzipFile(label_path, 'rb') as f:
@@ -59,7 +59,7 @@ def load_fashion_mnist_data(num_samples=10000):
     return x_fashion, y_fashion
 
 
-def locate_animal_files(expected_files):
+def locate_animal_mnist_files(expected_files):
     """
     Locate required animal dataset files, prompting the user if files are missing.
 
@@ -88,7 +88,7 @@ def locate_animal_files(expected_files):
     return file_paths
 
 
-def load_animal_shape_dataset():
+def load_animal_mnist_dataset():
     """
     Locate animal dataset files, load the dataset, and return the data and labels.
 
@@ -97,13 +97,13 @@ def load_animal_shape_dataset():
     - y_custom (ndarray): Loaded animal dataset labels.
     """
     expected_files = [
-        os.path.join("data", "Animal Shape", "animal_data_version_3.gz"),
-        os.path.join("data", "Animal Shape", "animal_label_version_3.gz")
+        os.path.join("data", "Animal_MNIST", "animal_data_version_3.gz"),
+        os.path.join("data", "Animal_MNIST", "animal_label_version_3.gz")
     ]
-    file_paths = locate_animal_files(expected_files)
+    file_paths = locate_animal_mnist_files(expected_files)
     DATA_PATH = file_paths["animal_data_version_3.gz"]
     LABEL_PATH = file_paths["animal_label_version_3.gz"]
 
     # Load the animal dataset
-    X_custom, y_custom = load_animal_shape(DATA_PATH, LABEL_PATH)
+    X_custom, y_custom = load_animal_mnist(DATA_PATH, LABEL_PATH)
     return X_custom, y_custom
