@@ -1,324 +1,219 @@
-# -*- coding: utf-8 -*-
-#################### IMPORTING DEPENDENCIES ####################
-################### INSTALLING DEPENDENCIES ############
-import subprocess
-import sys
+"""Reproducible Animal-MNIST v5 benchmark helper.
 
-# List of required libraries
-required_libraries = [
-    "numpy", "scikit-learn", "tensorflow", "pandas", "openpyxl"
-]
+Public entry points retained:
+    benchmark_model(model, X, y, model_name, dataset_name, repeats=5, is_tf_model=False)
+    run_benchmark(models, repeats=5)
+"""
+from __future__ import annotations
 
-# Function to install missing libraries
-def install_libraries():
-    for library in required_libraries:
-        try:
-            __import__(library)
-        except ImportError:
-            print(f"{library} not found. Installing...")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", library])
-        else:
-            print(f"{library} is already installed.")
-
-# Run the installation check
-install_libraries()
-
+import time
+from typing import Optional, Sequence
 
 import numpy as np
-from sklearn.model_selection import train_test_split, cross_val_score
-from tensorflow.keras.datasets import mnist, fashion_mnist
 import pandas as pd
-import gzip
-import pickle
-from openpyxl.styles import Border, Side, Alignment, Font
-from openpyxl.utils import get_column_letter
-from openpyxl import Workbook
-from openpyxl.worksheet.table import Table, TableStyleInfo
-import os
-import tensorflow as tf
-import random
-import time
-from sklearn.metrics import accuracy_score
 from sklearn.base import clone
-from sklearn.preprocessing import StandardScaler
-from sklearn.tree import DecisionTreeClassifier # for testing
-from tensorflow.keras.models import load_model
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
+import tensorflow as tf
+from animal_mnist import dataset_Loader
 
 
-#################### DEFINING FUNCTIONS ####################
-# Function to sample a subset of data
-def sample_data(data, labels, num_samples=10000):
-    indices = np.random.choice(len(data), num_samples, replace=False)
-    return data[indices], labels[indices]
-# Benchmarking function
-def benchmark_model(model, X, y, model_name, dataset_name, repeats=3, is_tf_model=False):
-    results = []
-    for _ in range(repeats):
-        # Split the data
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+DATASET_SIZE = 10_000
+SAMPLE_SEED = 42
+SPLIT_SEED = 42
 
-        # Preprocess for TensorFlow models
+
+def _check_split(y, split):
+    """Validate disjoint indices, complete coverage, and intended class balance."""
+    train_idx, val_idx, test_idx = (np.asarray(x, dtype=np.int64) for x in split)
+    n = len(y)
+    joined = np.concatenate([train_idx, val_idx, test_idx])
+    if not np.array_equal(np.sort(joined), np.arange(n, dtype=np.int64)):
+        raise ValueError('Train/validation/test indices must be disjoint and cover every image.')
+    if n == DATASET_SIZE and len(np.unique(y)) == 10:
+        if (len(train_idx), len(val_idx), len(test_idx)) != (7200, 800, 2000):
+            raise ValueError('Expected 7200/800/2000 for the 10,000-image benchmark.')
+        counts = {int(lab): (int(np.sum(y[train_idx] == lab)),
+                             int(np.sum(y[val_idx] == lab)),
+                             int(np.sum(y[test_idx] == lab)))
+                  for lab in np.unique(y)}
+        if any(counts[lab] != (720, 80, 200) for lab in counts):
+            raise ValueError(f'Split is not class-balanced: {counts}')
+    return train_idx, val_idx, test_idx
+
+
+def _stratified_split(y, seed=SPLIT_SEED):
+    """Exactly 20% test, then 10% of the remaining 80% for validation."""
+    ids = np.arange(len(y), dtype=np.int64)
+    train_val, test = train_test_split(ids, test_size=0.20,
+                                      random_state=seed, stratify=y)
+    train, val = train_test_split(train_val, test_size=0.10,
+                                  random_state=seed, stratify=y[train_val])
+    return _check_split(y, (np.sort(train), np.sort(val), np.sort(test)))
+
+
+def _reference_data(which, seed=SAMPLE_SEED):
+    """Create reproducible 10k balanced subsets of MNIST/Fashion-MNIST. Do NOT equate these with the official MNIST test splits.
+    """
+    if which == 'MNIST':
+        load = tf.keras.datasets.mnist.load_data
+    elif which == 'Fashion-MNIST':
+        load = tf.keras.datasets.fashion_mnist.load_data
+    else:
+        raise ValueError(which)
+    (x1, y1), (x2, y2) = load()
+    X = np.concatenate([x1, x2], axis=0)
+    y = np.concatenate([y1, y2], axis=0)
+    rng = np.random.default_rng(seed)
+    groups = []
+    for lab in range(10):
+        candidates = np.flatnonzero(y == lab)
+        if len(candidates) < 1000:
+            raise ValueError(f'Insufficient examples of class {lab} in {which}')
+        groups.append(rng.choice(candidates, size=1000, replace=False))
+    selection = np.concatenate(groups)
+    rng.shuffle(selection)
+    return X[selection], y[selection]
+
+
+def _is_tf_model(model):
+    return isinstance(model, tf.keras.Model)
+
+
+def _new_model(template, is_tf_model, seed):
+    """Fresh fit for EVERY dataset and run. Never reuses trained weights."""
+    if is_tf_model:
+        tf.keras.utils.set_random_seed(seed)
+        try:
+            new = tf.keras.models.clone_model(template)
+            config = template.get_compile_config()
+            if not config:
+                raise ValueError('Keras model must be compiled before benchmarking.')
+            new.compile_from_config(config)
+        except Exception as exc:
+            raise ValueError(
+                'Cannot clone/compile the supplied Keras model. Use a built, '
+                'compiled Sequential or Functional model with serializable '
+                'components; or adapt this helper for your custom model.'
+            ) from exc
+        return new
+    new = clone(template)
+    params = new.get_params(deep=False)
+    if 'random_state' in params:
+        new.set_params(random_state=seed)
+    return new
+
+
+def _features(X, is_tf_model):
+    X = np.asarray(X)
+    if is_tf_model:
+        # Existing package benchmark supported 28x28 grayscale CNNs.
+        if X.ndim == 3 and X.shape[1:] == (28, 28):
+            return X[..., np.newaxis].astype(np.float32) / 255.0
+        if X.ndim == 4 and X.shape[1:] == (28, 28, 1):
+            return X.astype(np.float32) / 255.0
+        raise ValueError(f'Keras benchmark expects 28x28 grayscale images, got {X.shape}')
+    if X.ndim > 2:
+        return X.reshape(len(X), -1)
+    return X
+
+
+def benchmark_model(model, X, y, model_name, dataset_name, repeats=5,
+                    is_tf_model=False, *, split_indices=None, seeds=None,
+                    epochs=1, batch_size=32, patience=5, split_seed=SPLIT_SEED):
+    """Evaluate one model with a fixed, stratified train/val/test partition.
+
+    repeats: independently initialized fits, NOT repeated data splits.
+    epochs: Keras only (default 1 for backward compatibility). For CNN research,
+            set explicitly, e.g. epochs=30, and document the training protocol.
+    seeds: e.g. [0,1,2,3,4]; overrides repeats when supplied.
+    """
+    X, y = np.asarray(X), np.asarray(y)
+    if X.shape[0] != y.shape[0]:
+        raise ValueError('Image and label counts do not match.')
+    if split_indices is None:
+        if dataset_name in {'Animal-MNIST Dataset', 'Animal-MNIST'}:
+            split_indices = dataset_Loader.load_animal_mnist_splits()
+        else:
+            split_indices = _stratified_split(y, seed=split_seed)
+    train_idx, val_idx, test_idx = _check_split(y, split_indices)
+
+    seeds = list(range(repeats)) if seeds is None else list(seeds)
+    if not seeds or any(not isinstance(s, (int, np.integer)) for s in seeds):
+        raise ValueError('Supply one or more integer training seeds.')
+    if epochs < 1 or batch_size < 1 or patience < 0:
+        raise ValueError('epochs/batch_size must be positive; patience >= 0.')
+
+    X_train, X_val, X_test = (_features(X[idx], is_tf_model) for idx in
+                              (train_idx, val_idx, test_idx))
+    y_train, y_val, y_test = y[train_idx], y[val_idx], y[test_idx]
+
+    accs, val_accs, times = [], [], []
+    for seed in seeds:
+        candidate = _new_model(model, is_tf_model, int(seed))
+        start = time.perf_counter()
         if is_tf_model:
-            X_train = X_train.reshape(-1, 28, 28, 1).astype("float32") / 255.0
-            X_test = X_test.reshape(-1, 28, 28, 1).astype("float32") / 255.0
-
-        # Skip cloning for TensorFlow/Keras models
-        if not is_tf_model:
-            from sklearn.base import clone
-            model = clone(model)
-
-        # Measure training time
-        start_time = time.time()
-        if is_tf_model:  # Fit and predict for TensorFlow/Keras models
-            model.fit(X_train, y_train, epochs=1, batch_size=32, verbose=0)
-            y_pred = model.predict(X_test).argmax(axis=1)
-        else:  # Fit and predict for Scikit-learn models
-            model.fit(X_train, y_train)
-            y_pred = model.predict(X_test)
-        train_time = time.time() - start_time
-
-        # Calculate accuracy
-        accuracy = accuracy_score(y_test, y_pred)
-        results.append((accuracy, train_time))
-
-    # Calculate mean and std
-    accuracies = [r[0] for r in results]
-    times = [r[1] for r in results]
-
+            callbacks = [tf.keras.callbacks.EarlyStopping(
+                monitor='val_loss', patience=patience,
+                restore_best_weights=True)] if epochs > 1 else []
+            candidate.fit(X_train, y_train, validation_data=(X_val, y_val),
+                          epochs=epochs, batch_size=batch_size,
+                          verbose=0, callbacks=callbacks)
+        else:
+            # Fixed hyperparameters: validation is held aside, not used for fitting.
+            candidate.fit(X_train, y_train)
+        elapsed = time.perf_counter() - start
+        if is_tf_model:
+            val_pred = np.argmax(candidate.predict(X_val, verbose=0), axis=-1)
+            test_pred = np.argmax(candidate.predict(X_test, verbose=0), axis=-1)
+            # Do not keep all repeated CNN instances and their GPU memory.
+            del candidate
+            tf.keras.backend.clear_session()
+        else:
+            val_pred = candidate.predict(X_val)
+            test_pred = candidate.predict(X_test)
+        val_accs.append(float(accuracy_score(y_val, val_pred)))
+        accs.append(float(accuracy_score(y_test, test_pred)))
+        times.append(float(elapsed))
+        print(f'  {model_name} / {dataset_name} / seed {int(seed)}: '
+              f'val={val_accs[-1]:.4f}, test={accs[-1]:.4f}, fit={elapsed:.2f}s',
+              flush=True)
     return {
-        "Model": model_name,
-        "Dataset": dataset_name,
-        "Accuracy (mean)": np.mean(accuracies),
-        "Accuracy (std)": np.std(accuracies),
-        "Training Time (mean)": np.mean(times),
+        'Model': model_name,
+        'Dataset': dataset_name,
+        'Accuracy (mean)': float(np.mean(accs)),
+        'Accuracy (std)': float(np.std(accs, ddof=1)) if len(accs)>1 else 0.0,
+        'Validation Accuracy (mean)': float(np.mean(val_accs)),
+        'Validation Accuracy (std)': float(np.std(val_accs, ddof=1)) if len(val_accs)>1 else 0.0,
+        'Training Time (mean)': float(np.mean(times)),
+        'Training Time (std)': float(np.std(times, ddof=1)) if len(times)>1 else 0.0,
+        'Runs': len(seeds),
+        'Seeds': ','.join(str(s) for s in seeds),
+        'Split': 'official-v5' if dataset_name in {'Animal-MNIST Dataset', 'Animal-MNIST'} else f'stratified-{split_seed}',
     }
 
-def run_benchmark(models, datasets, repeats=3):
-    benchmark_results = []
+
+def run_benchmark(models, repeats=5, *, seeds=None, epochs=1, batch_size=32,
+                  patience=5, sample_seed=SAMPLE_SEED, split_seed=SPLIT_SEED):
+    """Run three-dataset comparisons with consistent 72/8/20 evaluation sizes.
+
+    Keeps the original run_benchmark(models, repeats=5) call working.
+    For Keras models, explicitly set epochs to match the paper's protocol.
+    Returned mean/std across seeds measures training variation on a FIXED split.
+    """
+    datasets = {
+        'MNIST': _reference_data('MNIST', seed=sample_seed),
+        'Fashion-MNIST': _reference_data('Fashion-MNIST', seed=sample_seed),
+        'Animal-MNIST Dataset': dataset_Loader.load_animal_mnist_dataset(),
+    }
+    results = []
     for model_name, model in models.items():
-        is_tf_model = isinstance(model, tf.keras.Model)  # Checking to see if it's a Keras model
+        is_tf = _is_tf_model(model)
         for dataset_name, (X, y) in datasets.items():
-            print(f"Running benchmark for {model_name} on {dataset_name}...")
+            print(f'Running {model_name} on {dataset_name} using fixed 72/8/20...', flush=True)
             result = benchmark_model(
-                model, X, y, model_name, dataset_name, repeats, is_tf_model
-            )
-            benchmark_results.append(result)
-
-    # Convert results to a DataFrame
-    results_df = pd.DataFrame(benchmark_results)
-    return results_df
-
-def scale_dataset(X, y):
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-    return X_scaled, y
-
-# Modified function to format results with merged headers
-def format_results_table_with_merged_headers(results_df):
-    # Create hierarchical MultiIndex for columns
-    columns = pd.MultiIndex.from_tuples([
-        ("Model", ""),
-        ("MNIST", "accuracy (mean)"),
-        ("MNIST", "accuracy (std)"),
-        ("MNIST", "Training Time (mean)"),
-        ("Fashion-MNIST", "accuracy (mean)"),
-        ("Fashion-MNIST", "accuracy (std)"),
-        ("Fashion-MNIST", "Training Time (mean)"),
-        ("Animal-MNIST", "accuracy (mean)"),
-        ("Animal-MNIST", "accuracy (std)"),
-        ("Animal-MNIST", "Training Time (mean)")
-    ])
-
-    # Initialize an empty DataFrame with hierarchical columns
-    formatted_results = pd.DataFrame(columns=columns)
-
-    # Fill the rows
-    for model in results_df["Model"].unique():
-        row = [model]  # Start with the model name
-        for dataset in ["MNIST", "Fashion-MNIST", "Custom Dataset"]:
-            dataset_name = "Animal Silhouette MNIST" if dataset == "Custom Dataset" else dataset
-            subset = results_df[(results_df["Model"] == model) & (results_df["Dataset"] == dataset)]
-            if not subset.empty:
-                row.extend([subset["Accuracy (mean)"].values[0],
-                            subset["Accuracy (std)"].values[0],
-                            subset["Training Time (mean)"].values[0]])
-            else:
-                row.extend([None, None, None])  # Fill empty values if no results
-        formatted_results.loc[len(formatted_results)] = row
-
-    return formatted_results
-
-
-def load_animal_mnist_dataset(data_path, label_path):
-    with gzip.GzipFile(data_path, 'rb') as f:
-        data = pickle.load(f)
-    with gzip.GzipFile(label_path, 'rb') as f:
-        label = pickle.load(f)
-    return data, label
-
-def load_uploaded_model(file_path):
-    # Check file extension
-    if file_path.endswith(".h5") or file_path.endswith(".keras"):
-        print("Loading TensorFlow/Keras model...")
-        model = load_model(file_path)
-    elif file_path.endswith(".pkl"):
-        print("Loading pickle model...")
-        with open(file_path, "rb") as f:
-            model = pickle.load(f)
-    else:
-        raise ValueError("Unsupported file format. Please upload a .keras, .h5, or .pkl file.")
-    return model
-
-def create_table():
-  # Create a workbook and add a worksheet
-  wb = Workbook()
-  ws = wb.active
-
-  # Write the merged headers
-  headers = [
-      ("Model", ""),
-      ("MNIST", "accuracy (mean)"),
-      ("MNIST", "accuracy (std)"),
-      ("MNIST", "Training Time (mean)"),
-      ("Fashion-MNIST", "accuracy (mean)"),
-      ("Fashion-MNIST", "accuracy (std)"),
-      ("Fashion-MNIST", "Training Time (mean)"),
-      ("Animal-MNIST", "accuracy (mean)"),
-      ("Animal-MNIST", "accuracy (std)"),
-      ("Animal-MNIST", "Training Time (mean)")
-  ]
-
-  # Merge cells and write dataset headers
-  col = 2
-  for dataset in ["MNIST", "Fashion-MNIST", "Animal-MNIST"]:
-      ws.merge_cells(start_row=1, start_column=col, end_row=1, end_column=col + 2)
-      ws.cell(row=1, column=col).value = dataset
-      ws.cell(row=1, column=col).alignment = Alignment(horizontal="center", vertical="center")
-      ws.cell(row=1, column=col).font = Font(bold=True)
-      col += 3
-
-  # Write subheaders
-  for i, header in enumerate(headers):
-      cell = ws.cell(row=2, column=i + 1)
-      cell.value = header[1] if header[1] else header[0]
-      cell.alignment = Alignment(horizontal="center", vertical="center")
-      cell.font = Font(bold=True)
-
-  # Write the data
-  for i, row in enumerate(formatted_results.itertuples(index=False), start=3):
-      for j, value in enumerate(row, start=1):
-          cell = ws.cell(row=i, column=j)
-          cell.value = value
-          cell.alignment = Alignment(horizontal="center", vertical="center")
-
-  # Add borders to the table
-  thin_border = Border(
-      left=Side(style="thin"),
-      right=Side(style="thin"),
-      top=Side(style="thin"),
-      bottom=Side(style="thin")
-  )
-
-  for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
-      for cell in row:
-          cell.border = thin_border
-
-  # Adjust column widths
-  for col_idx in range(1, ws.max_column + 1):
-      col_letter = get_column_letter(col_idx)
-      ws.column_dimensions[col_letter].width = 20  # Set column width
-
-  # Save the styled table
-  output_folder = os.path.join(os.getcwd(), "output")
-  # Create the folder if it doesn't exist
-  if not os.path.exists(output_folder):
-      os.makedirs(output_folder)
-  # Define the full path for the output Excel file
-  output_file_path = os.path.join(output_folder, "Benchmark_file.xlsx")
-  wb.save(output_file_path)
-  print(f" table saved to {output_file_path}")
-
-
-#################### LOADING THE DATASETS ####################
-# Load MNIST
-(x_train_mnist, y_train_mnist), (x_test_mnist, y_test_mnist) = mnist.load_data()
-x_mnist, y_mnist = sample_data(np.concatenate([x_train_mnist, x_test_mnist]),
-                               np.concatenate([y_train_mnist, y_test_mnist]),
-                               num_samples=10000)
-# Load Fashion-MNIST
-(x_train_fashion, y_train_fashion), (x_test_fashion, y_test_fashion) = fashion_mnist.load_data()
-x_fashion, y_fashion = sample_data(np.concatenate([x_train_fashion, x_test_fashion]),
-                                   np.concatenate([y_train_fashion, y_test_fashion]),
-                                   num_samples=10000)
-
-expected_files = [
-    os.path.join("data", "Animal Shape", "animal_data_version_3.gz"),
-    os.path.join("data", "Animal Shape", "animal_label_version_3.gz")
-]
-
-file_paths = {}
-for expected_file in expected_files:
-    while True:
-        if os.path.exists(expected_file):
-            print(f"Data file found at: {expected_file}\n\n")
-            file_paths[os.path.basename(expected_file)] = expected_file
-            break
-        else:
-            print(f"{os.path.basename(expected_file)} not found!!\n")
-            file_path = input(f'Please input the location of "{os.path.basename(expected_file)}": ')
-            if os.path.isfile(file_path) and os.path.basename(file_path) == os.path.basename(expected_file):
-                print(f"Data file found at: {file_path}\n\n")
-                file_paths[os.path.basename(expected_file)] = file_path
-                break
-            else:
-                print(f"Error: The file at {file_path} does not match '{os.path.basename(expected_file)}'. Please check the path and try again.\n")
-
-# If necassary, the location can be changed manually
-DATA_PATH = file_paths["animal_data_version_3.gz"]
-LABEL_PATH = file_paths["animal_label_version_3.gz"]
-
-# Loading the Animal-MNIST dataset
-X_custom, y_custom = load_animal_mnist_dataset(DATA_PATH, LABEL_PATH)
-
-# Display information
-print(f"MNIST data shape: {x_mnist.shape}, labels shape: {y_mnist.shape}")
-print(f"Fashion-MNIST data shape: {x_fashion.shape}, labels shape: {y_fashion.shape}")
-print(f"Animal-MNIST shape: {X_custom.shape}, labels shape: {y_custom.shape}")
-
-CHECK = input("Would you like the datasets to be scaled?: ")
-if CHECK.lower() == "yes" or CHECK.lower() =="y":
-  # Scale datasets
-
-  datasets = {
-      "MNIST": scale_dataset(x_mnist.reshape(x_mnist.shape[0], -1), y_mnist),
-      "Fashion-MNIST": scale_dataset(x_fashion.reshape(x_fashion.shape[0], -1), y_fashion),
-      "Custom Dataset": scale_dataset(X_custom.reshape(X_custom.shape[0], -1), y_custom)
-  }
-else:
-  datasets = {
-    "MNIST": (x_mnist, y_mnist),
-    "Fashion-MNIST": (x_fashion, y_fashion),
-    "Custom Dataset": (X_custom, y_custom)
-  }
-#################### LOADING THE USER MODEL ####################
-MODEL_NAME = input("Please enter the name of your Model: ")
-MODEL_PATH = input("Please enter the location to your Model: ")
-CHECK = input("Would you like to see the comparison between your Model and Random Tree(\"entropy\", max_depth=10, \"best\")?: ")
-user_model = load_uploaded_model (MODEL_PATH)
-
-if CHECK.lower() == "yes" or CHECK.lower() =="y":
-  models = {
-      MODEL_NAME: user_model,
-      "Random Tree": DecisionTreeClassifier(
-          criterion="entropy", max_depth=10, splitter="best", random_state=42
-      )
-  }
-else:
-      models = {
-      MODEL_NAME: user_model
-  }
-
-#################### RUNNING BENCHMARK ####################
-results_df = run_benchmark(models, datasets)
-formatted_results = format_results_table_with_merged_headers(results_df)
-create_table()
+                model, X, y, model_name, dataset_name, repeats, is_tf,
+                seeds=seeds, epochs=epochs, batch_size=batch_size,
+                patience=patience, split_seed=split_seed)
+            results.append(result)
+    return pd.DataFrame(results)
