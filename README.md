@@ -50,6 +50,18 @@ X_MNIST, y_MNIST = load_mnist_data()
 X_fashion, y_fashion = load_fashion_mnist_data() 
 X_animal,y_animal = load_animal_mnist_dataset()
 ```
+The official class-stratified partition contains 7,200 training images, 800 validation images, and 2,000 test images. Split indices are fixed for reproducible comparisons.
+
+```python
+from animal_mnist.dataset_Loader import load_animal_mnist_splits
+
+train_idx, val_idx, test_idx = load_animal_mnist_splits()
+
+X_train, y_train = X[train_idx], y[train_idx]
+X_val, y_val = X[val_idx], y[val_idx]
+X_test, y_test = X[test_idx], y[test_idx]
+```
+
 
 ## Labels
 This is how the images are assigned their class ID:
