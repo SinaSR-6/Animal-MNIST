@@ -1,109 +1,62 @@
-
 from tensorflow.keras.datasets import mnist, fashion_mnist
 import numpy as np
 import os
 import gzip
 import pickle
+import importlib.resources as pkg_resources
+from animal_mnist import data
+import os
+import gzip
+import pickle
+from tensorflow.keras.datasets import mnist, fashion_mnist
+import numpy as np
 
+def get_data_path(filename):
+    """Return the absolute path of a data file in the installed package."""
+    package_dir = os.path.dirname(__file__)  # Get the installed package directory
+    return os.path.join(package_dir, "data", "Animal_MNIST", filename)
 
 def sample_data(data, labels, num_samples=10000):
+    """Randomly sample a subset of data."""
     indices = np.random.choice(len(data), num_samples, replace=False)
     return data[indices], labels[indices]
 
+def load_animal_mnist_dataset():
+    """Load the Animal MNIST dataset from the installed package."""
+    data_path = get_data_path("animal_data_version_5.gz")
+    label_path = get_data_path("animal_label_version_5.gz")
+    
+    if not os.path.exists(data_path) or not os.path.exists(label_path):
+        raise FileNotFoundError(f"Dataset files not found in package at: {data_path} and {label_path}")
 
-def load_animal_mnist(data_path, label_path):
-    with gzip.GzipFile(data_path, 'rb') as f:
+    with gzip.open(data_path, 'rb') as f:
         data = pickle.load(f)
-    with gzip.GzipFile(label_path, 'rb') as f:
-        label = pickle.load(f)
-    return data, label
+    with gzip.open(label_path, 'rb') as f:
+        labels = pickle.load(f)
 
+    return data, labels
+
+def load_animal_mnist_splits():
+    """
+    Load the official Animal-MNIST v5 split indices. train_idx : ndarray of shape (7200,) | val_idx   : ndarray of shape (800,)| test_idx  : ndarray of shape (2000,)
+    """
+    split_path = get_data_path("animal_mnist_splits_v5.npz")
+
+    with np.load(split_path, allow_pickle=False) as splits:
+        train_idx = splits["train_idx"].copy()
+        val_idx = splits["val_idx"].copy()
+        test_idx = splits["test_idx"].copy()
+
+    return train_idx, val_idx, test_idx
 
 def load_mnist_data(num_samples=10000):
-    """
-    Load and sample MNIST dataset.
-    
-    Parameters:
-    - num_samples (int): Number of samples to extract.
-
-    Returns:
-    - x_mnist (ndarray): Sampled MNIST images.
-    - y_mnist (ndarray): Sampled MNIST labels.
-    """
-    (x_train_mnist, y_train_mnist), (x_test_mnist, y_test_mnist) = mnist.load_data()
-    x_mnist, y_mnist = sample_data(
-        np.concatenate([x_train_mnist, x_test_mnist]),
-        np.concatenate([y_train_mnist, y_test_mnist]),
-        num_samples=num_samples
-    )
-    return x_mnist, y_mnist
-
+    """Load and sample MNIST dataset."""
+    (x_train, y_train), (x_test, y_test) = mnist.load_data()
+    x_data, y_data = sample_data(np.concatenate([x_train, x_test]), np.concatenate([y_train, y_test]), num_samples)
+    return x_data, y_data
 
 def load_fashion_mnist_data(num_samples=10000):
-    """
-    Load and sample Fashion-MNIST dataset.
-    
-    Parameters:
-    - num_samples (int): Number of samples to extract.
-
-    Returns:
-    - x_fashion (ndarray): Sampled Fashion-MNIST images.
-    - y_fashion (ndarray): Sampled Fashion-MNIST labels.
-    """
-    (x_train_fashion, y_train_fashion), (x_test_fashion, y_test_fashion) = fashion_mnist.load_data()
-    x_fashion, y_fashion = sample_data(
-        np.concatenate([x_train_fashion, x_test_fashion]),
-        np.concatenate([y_train_fashion, y_test_fashion]),
-        num_samples=num_samples
-    )
-    return x_fashion, y_fashion
-
-
-def locate_animal_mnist_files(expected_files):
-    """
-    Locate required animal dataset files, prompting the user if files are missing.
-
-    Parameters:
-    - expected_files (list): List of expected file paths.
-
-    Returns:
-    - file_paths (dict): Dictionary of located file paths with filenames as keys.
-    """
-    file_paths = {}
-    for expected_file in expected_files:
-        while True:
-            if os.path.exists(expected_file):
-                print(f"Data file found at: {expected_file}\n\n")
-                file_paths[os.path.basename(expected_file)] = expected_file
-                break
-            else:
-                print(f"{os.path.basename(expected_file)} not found!!\n")
-                file_path = input(f'Please input the location of "{os.path.basename(expected_file)}": ')
-                if os.path.isfile(file_path) and os.path.basename(file_path) == os.path.basename(expected_file):
-                    print(f"Data file found at: {file_path}\n\n")
-                    file_paths[os.path.basename(expected_file)] = file_path
-                    break
-                else:
-                    print(f"Error: The file at {file_path} does not match '{os.path.basename(expected_file)}'. Please check the path and try again.\n")
-    return file_paths
-
-
-def load_animal_mnist_dataset():
-    """
-    Locate animal dataset files, load the dataset, and return the data and labels.
-
-    Returns:
-    - X_custom (ndarray): Loaded animal dataset images.
-    - y_custom (ndarray): Loaded animal dataset labels.
-    """
-    expected_files = [
-        os.path.join("data", "Animal_MNIST", "animal_data_version_3.gz"),
-        os.path.join("data", "Animal_MNIST", "animal_label_version_3.gz")
-    ]
-    file_paths = locate_animal_mnist_files(expected_files)
-    DATA_PATH = file_paths["animal_data_version_3.gz"]
-    LABEL_PATH = file_paths["animal_label_version_3.gz"]
-
-    # Load the animal dataset
-    X_custom, y_custom = load_animal_mnist(DATA_PATH, LABEL_PATH)
-    return X_custom, y_custom
+    """Load and sample Fashion-MNIST dataset."""
+    (x_train, y_train), (x_test, y_test) = fashion_mnist.load_data()
+    x_data, y_data = sample_data(np.concatenate([x_train, x_test]), np.concatenate([y_train, y_test]), num_samples)
+    return x_data, y_data
