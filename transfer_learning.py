@@ -1,112 +1,90 @@
-"""
-transfer_learning.py
-
-Run:  python 06_transfer_learning_v2.py --seeds 3 --epochs 15
-Outputs: transfer_results_v2.csv
-"""
 import argparse
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score
-from sklearn.model_selection import train_test_split
 import tensorflow as tf
-from tensorflow.keras import layers, models
-from animal_mnist.dataset_Loader import (
-    load_animal_mnist_dataset,
-    load_mnist_data,
-    load_fashion_mnist_data,
-)
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
+
+from experiment_data import NAMES, get_dataset, load_or_train, build_smallcnn, data_fingerprint
+
+OUTPUT = Path("results/transfer")
 
 
-def stratified_split(X, y, test_size=0.2, seed=0):
-    return train_test_split(X, y, test_size=test_size, random_state=seed,
-                            shuffle=True, stratify=y)
+def features(model, x):
+    encoder = tf.keras.Model(model.inputs, model.get_layer("features").output)
+    return encoder.predict(x, batch_size=256, verbose=0)
 
 
-def load_all_three():
-    Xa, ya = load_animal_mnist_dataset()
-    return {
-        "Animal-MNIST": (np.asarray(Xa), np.asarray(ya).astype(int)),
-        "MNIST": load_mnist_data(),
-        "Fashion-MNIST": load_fashion_mnist_data(),
-    }
+def train_target(name, seed, datasets, epochs):
+    x, y, (tr, va, _) = datasets[name]
+    path = OUTPUT / "models" / name / f"seed{seed}.weights.h5"
+    return load_or_train(path, 10, x[tr], y[tr], x[va], y[va], seed, epochs)
 
 
-def backbone(input_shape=(28, 28, 1)):
-    inp = layers.Input(shape=input_shape)
-    x = layers.Conv2D(32, 3, activation="relu", padding="same")(inp)
-    x = layers.MaxPool2D(pool_size=(2, 2))(x)
-    x = layers.Conv2D(64, 3, activation="relu", padding="same")(x)
-    x = layers.MaxPool2D(pool_size=(2, 2))(x)
-    x = layers.Flatten()(x)
-    feat = layers.Dense(128, activation="relu", name="feat")(x)
-    out = layers.Dense(10, activation="softmax")(feat)
-    return models.Model(inp, out)
+def train_cross_source(seed, datasets, epochs):
+    x1, y1, (tr1, va1, _) = datasets["MNIST"]
+    x2, y2, (tr2, va2, _) = datasets["Fashion-MNIST"]
+    path = OUTPUT / "models" / "MNIST_Fashion" / f"seed{seed}.weights.h5"
+    return load_or_train(
+        path, 20, np.concatenate((x1[tr1], x2[tr2])),
+        np.concatenate((y1[tr1], y2[tr2] + 10)),
+        np.concatenate((x1[va1], x2[va2])),
+        np.concatenate((y1[va1], y2[va2] + 10)), seed, epochs
+    )
 
 
-def prep(X):
-    return X.reshape(-1, 28, 28, 1).astype("float32") / 255.0
-
-
-def features(model, X):
-    fm = models.Model(model.input, model.get_layer("feat").output)
-    return fm.predict(prep(X), verbose=0)
-
-
-def train_backbone(X, y, seed, epochs):
-    tf.keras.utils.set_random_seed(seed)
-    m = backbone()
-    m.compile("adam", "sparse_categorical_crossentropy", metrics=["accuracy"])
-    m.fit(prep(X), y, epochs=epochs, batch_size=128, validation_split=0.1, verbose=0,
-          callbacks=[tf.keras.callbacks.EarlyStopping(patience=3,
-                     restore_best_weights=True)])
-    return m
-
-
-def probe(bk, Xt, yt, seed):
-    Xtr, Xte, ytr, yte = stratified_split(Xt, yt, 0.2, seed=seed)
-    clf = LogisticRegression(max_iter=500).fit(features(bk, Xtr), ytr)
-    return accuracy_score(yte, clf.predict(features(bk, Xte)))
-
-
-def combine(d1, d2):
-    return (np.concatenate([d1[0], d2[0]]), np.concatenate([d1[1], d2[1]]))
-
-
-def run(seeds=3, epochs=15):
-    data = load_all_three()
-    mnist, fashion, animal = data["MNIST"], data["Fashion-MNIST"], data["Animal-MNIST"]
-    src_mf = combine(mnist, fashion)
-    setups = {
-        "-> Animal":  (src_mf, animal),
-        "-> MNIST":   (animal, mnist),
-        "-> Fashion": (animal, fashion),
-    }
-    rows = []
-    for tag, (src, tgt) in setups.items():
-        Xt, yt = tgt
-        rnd, src_acc, same = [], [], []
-        for s in range(seeds):
-            tf.keras.utils.set_random_seed(s)
-            rnd.append(probe(backbone(), Xt, yt, s))
-            src_acc.append(probe(train_backbone(*src, s, epochs), Xt, yt, s))
-            same.append(probe(train_backbone(Xt, yt, s, epochs), Xt, yt, s))
-            tf.keras.backend.clear_session()
-        for name, arr in [("RANDOM", rnd), ("SOURCE(transfer)", src_acc), ("SAME(ceiling)", same)]:
-            arr = np.array(arr)
-            rows.append({"target": tag, "backbone": name,
-                         "mean_acc": arr.mean(), "std_acc": arr.std(ddof=1) if seeds > 1 else 0.0})
-            print(f"{tag:11s} | {name:17s} | {arr.mean():.4f} +/- "
-                  f"{(arr.std(ddof=1) if seeds>1 else 0):.4f}")
-        print("-" * 50)
-    pd.DataFrame(rows).to_csv("transfer_results_v2.csv", index=False)
-    print("Saved transfer_results_v2.csv")
+def run(seeds, epochs):
+    datasets = {name: get_dataset(name) for name in NAMES}
+    OUTPUT.mkdir(parents=True, exist_ok=True)
+    output_csv = OUTPUT / "per_seed.csv"
+    rows = pd.read_csv(output_csv).to_dict("records") if output_csv.exists() else []
+    for seed in seeds:
+        rows = [row for row in rows if int(row["seed"]) != seed]
+        targets = {name: train_target(name, seed, datasets, epochs) for name in NAMES}
+        cross = train_cross_source(seed, datasets, epochs)
+        for name in NAMES:
+            x, y, (tr, va, te) = datasets[name]
+            conditions = {
+                "random": None,
+                "cross_domain": cross if name == "Animal-MNIST" else targets["Animal-MNIST"],
+                "target_trained": targets[name],
+            }
+            for condition, source in conditions.items():
+                if source is None:
+                    tf.keras.utils.set_random_seed(int(seed))
+                    source = build_smallcnn()
+                f_train = features(source, x[tr])
+                f_val = features(source, x[va])
+                f_test = features(source, x[te])
+                scaler = StandardScaler().fit(f_train)
+                f_train, f_val, f_test = [scaler.transform(a) for a in (f_train, f_val, f_test)]
+                best = None
+                for c in (0.1, 1.0, 10.0):
+                    clf = LogisticRegression(C=c, solver="lbfgs", max_iter=3000)
+                    clf.fit(f_train, y[tr])
+                    val_score = clf.score(f_val, y[va])
+                    if best is None or val_score > best[0]:
+                        best = (val_score, c, clf)
+                val_score, c, clf = best
+                score = clf.score(f_test, y[te])
+                rows.append(dict(dataset=name, seed=seed, source=condition, selected_C=c,
+                                 val_accuracy=val_score, test_accuracy=score,
+                                 dataset_hash=data_fingerprint(x, y, (tr, va, te))))
+                print(name, seed, condition, f"test={score:.4f} C={c}", flush=True)
+                pd.DataFrame(rows).to_csv(output_csv, index=False)
+        del targets, cross
+        tf.keras.backend.clear_session()
+    result = pd.DataFrame(rows)
+    result.groupby(["dataset", "source"], sort=False).test_accuracy.agg(
+        ["count", "mean", "std"]
+    ).to_csv(OUTPUT / "summary.csv")
 
 
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--seeds", type=int, default=3)
-    ap.add_argument("--epochs", type=int, default=15)
-    a = ap.parse_args()
-    run(a.seeds, a.epochs)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--seeds", type=int, nargs="+", default=list(range(5)))
+    parser.add_argument("--epochs", type=int, default=100)
+    args = parser.parse_args()
+    run(args.seeds, args.epochs)
