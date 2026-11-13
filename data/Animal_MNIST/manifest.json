@@ -1,0 +1,25 @@
+{
+  "sizes": {
+    "train": 7200,
+    "validation": 800,
+    "test": 2000
+  },
+  "class_counts": {
+    "train": 720,
+    "validation": 80,
+    "test": 200
+  },
+  "image_shape": [
+    28,
+    28
+  ],
+  "image_dtype": "uint8",
+  "label_dtype": "int64",
+  "dataset_sha256": "8fc4cdff928dc97de4d50a3e40a435674f918173c1023b1e3b37ba4f415147c6",
+  "split_sha256": "9d0e423192c7d469b8d3ccd482d7555ca1e48e3f7ffda85cf4ca0b0565901e14",
+  "files": {
+    "train": "720c2948a1037f252257197106934cecde50f3404b4738a014353a2e77a494c1",
+    "validation": "19c2c3a5facc11bdf0b8171e4fc208a1ba32fd929a6390b7975788ef052fa95a",
+    "test": "9724ba1ea6c8b7420552ce801343f5828b91ff3e7ecc3e38ff3fb6ac1ac793ed"
+  }
+}
