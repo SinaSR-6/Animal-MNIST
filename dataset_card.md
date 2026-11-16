@@ -4,7 +4,7 @@
 
 Animal-MNIST is a compact, class-balanced image-classification benchmark containing **10,000 synthetic animal images** across ten categories. Images are supplied as **28 × 28, single-channel, 8-bit grayscale** arrays, in the spirit of MNIST. Its primary purpose is to support accessible experiments in small-image classification and the study of shape-related visual information.
 
-The images emphasize animal silhouettes and outlines, but they are **not pure silhouette masks**. Grayscale images can retain internal visual cues. Performance on Animal-MNIST must not, by itself, be interpreted as evidence that a classifier relies exclusively on shape.
+The images emphasize animal silhouettes and outlines, but they are **not pure silhouette masks**. Grayscale images can retain internal visual cues.
 
 ## Dataset contents
 
@@ -29,13 +29,7 @@ The release was assembled over multiple generation and processing batches. Histo
 
 For the documented prompts, model settings, applicable library defaults, detection thresholds, preprocessing steps, and limits of reproducibility, see [`GENERATION_PROTOCOL.md`](GENERATION_PROTOCOL.md). The public generator is an implementation example rather than a complete historical record of every image.
 
-## Quality and integrity checks
 
-- Each of the ten categories contains 1,000 released images.
-- Candidate images were screened for recognizable animal structure and suitability for a low-resolution benchmark.
-- An exact-pixel duplicate audit led to replacement of **284 image positions**; a further review of perceptually similar candidates led to **32 additional Bird replacements**.
-- The finalized release contains **no exact duplicate pixel arrays**. Perceptual-hash and structural-similarity checks were used to identify candidates for review; they do **not** prove the absence of all near-duplicate images.
-- Labels represent the intended animal categories of the generated images. The detector-assisted selection workflow and manual inspection do not constitute independent, exhaustive label verification of every generation.
 
 ## Appropriate uses
 
@@ -50,7 +44,6 @@ For the documented prompts, model settings, applicable library defaults, detecti
 - **Limited coverage:** There are only ten categories; several depict four-legged mammals. This is not a comprehensive representation of animal diversity.
 - **Shape emphasis, not shape exclusivity:** The low-resolution grayscale format suppresses much color and texture detail, but internal grayscale patterns and other shortcuts may remain. Animal categories with similar outlines, particularly Horse and Zebra, can be difficult to distinguish using shape alone.
 - **Selection bias:** Detection-assisted extraction and human review may favor certain poses, shapes, and visually clear candidates.
-- **Not segmentation ground truth:** Images are grayscale classification inputs, not manually annotated foreground masks or pixel-level outlines.
 - **No fairness or deployment validation:** The dataset is not intended to support operational wildlife identification, ecological surveillance, safety-critical decisions, or claims about model performance outside the benchmark.
 
 ## Access and citation
@@ -64,6 +57,24 @@ Please cite the project's associated manuscript when available, together with th
 ## Licensing and third-party materials
 
 The repository includes an **MIT software license**. **A separate, explicit license statement for the released dataset images has not been verified in the available project records.** Do not assume that the software license also determines the terms for every generated image. The maintainers should clarify the dataset-image reuse terms in the repository and archived record before those permissions are represented as settled.
+
+# Animal-MNIST Dataset License
+
+The Animal-MNIST dataset, including its images and corresponding labels, is distributed under the Creative Commons Attribution 4.0 International License (CC BY 4.0), to the extent that the dataset creators hold the necessary rights.
+
+License:
+https://creativecommons.org/licenses/by/4.0/
+
+When using or redistributing Animal-MNIST, please
+acknowledge the dataset creators:
+
+Sina Mohammadi, Mohammad Samy Baladram,
+and Michael R. Zielewski.
+
+Project:
+https://github.com/SinaSR-6/Animal-MNIST
+
+This license applies to the Animal-MNIST dataset. It does not relicense the third-party generative models, object-detection models, or other dependencies used during its creation.
 
 The pretrained models used in dataset production are third-party artifacts, whose terms are **independent of the repository's MIT software license**:
 
