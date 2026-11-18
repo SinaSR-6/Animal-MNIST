@@ -83,7 +83,3 @@ The pretrained models used in dataset production are third-party artifacts, whos
 - **Ultralytics YOLOv8:** The [project documentation](https://docs.ultralytics.com/models/yolov8/) identifies **AGPL-3.0 and enterprise licensing** for its software and models.
 
 Consult the applicable third-party terms before reusing these model weights or generating additional images. Distribution of Animal-MNIST does not relicense upstream models.
-
-## Maintenance and contact
-
-For questions, corrections, or possible labeling and duplicate issues, open an issue in the [project repository](https://github.com/SinaSR-6/Animal-MNIST/issues). Please include the image index or class and a brief description so the issue can be investigated.
