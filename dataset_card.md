@@ -56,11 +56,11 @@ Please cite the project's associated manuscript when available, together with th
 
 ## Licensing and third-party materials
 
-The repository includes an **MIT software license**. **A separate, explicit license statement for the released dataset images has not been verified in the available project records.** Do not assume that the software license also determines the terms for every generated image. The maintainers should clarify the dataset-image reuse terms in the repository and archived record before those permissions are represented as settled.
+The repository includes an **MIT software license** for all the provided material and code.
 
 # Animal-MNIST Dataset License
 
-The Animal-MNIST dataset, including its images and corresponding labels, is distributed under the Creative Commons Attribution 4.0 International License (CC BY 4.0), to the extent that the dataset creators hold the necessary rights.
+The Animal-MNIST dataset itself, including its images and corresponding labels, is distributed under the Creative Commons Attribution 4.0 International License (CC BY 4.0), to the extent that the dataset creators hold the necessary rights.
 
 License:
 https://creativecommons.org/licenses/by/4.0/
